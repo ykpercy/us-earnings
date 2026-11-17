@@ -27,7 +27,8 @@ SUBS_URL = "https://www.sec.gov/Archives/edgar/daily-index/bulkdata/submissions.
 TICKERS_URL = "https://www.sec.gov/files/company_tickers_exchange.json"
 
 REV = ["Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax",
-       "RevenueFromContractWithCustomerIncludingAssessedTax", "SalesRevenueNet", "SalesRevenueGoodsNet"]
+       "RevenueFromContractWithCustomerIncludingAssessedTax", "SalesRevenueNet", "SalesRevenueGoodsNet",
+       "RevenuesNetOfInterestExpense"]
 NI = ["NetIncomeLoss", "ProfitLoss"]
 EPS_D = ["EarningsPerShareDiluted", "EarningsPerShareBasicAndDiluted"]
 EPS_B = ["EarningsPerShareBasic"]
@@ -123,6 +124,13 @@ def growth(cur, prev):
     return round((cur - prev) / abs(prev) * 100, 2)
 
 
+def combine(a, b):
+    """两组区间事实按相同起止日期相加（银行：净利息收入 + 非利息收入 = 净营收）。"""
+    bm = {(x[0], x[1]): x for x in b}
+    return [(x[0], x[1], x[2] + bm[(x[0], x[1])][2], max(x[3], bm[(x[0], x[1])][3]))
+            for x in a if (x[0], x[1]) in bm]
+
+
 def latest_end(*series):
     cands = set()
     for ds in series:
@@ -158,6 +166,10 @@ def shares_out(facts, ds_basic, end):
 def build_row(cik, doc):
     facts = doc.get("facts", {})
     rev, ni = durations(facts, REV), durations(facts, NI)
+    # 银行等金融公司常无 Revenues 标签：用 净利息收入 + 非利息收入 补足缺失的区间
+    have = {(x[0], x[1]) for x in rev}
+    rev += [x for x in combine(durations(facts, ["InterestIncomeExpenseNet"]), durations(facts, ["NoninterestIncome"]))
+            if (x[0], x[1]) not in have]
     end = latest_end(rev, ni)
     if not end:
         return None
