@@ -13,7 +13,8 @@
     company_tickers_exchange.json   代码与交易所，用于只保留当前上市公司
 
 输出字段（金额单位：美元；增长率单位：%）：
-    t 代码, n 名称, ex 交易所, ind 行业, cq 日历季度(如 2026Q3), end 报告期末, d 公告日期,
+    t 代码, n 名称, ex 交易所, ind 行业, cq 日历季度(如 2026Q3，按季末日期归类，便于跨公司比较),
+    fq 公司财季(如 FY2026 Q4), end 报告期末, d 公告日期,
     eps 每股收益(稀释优先), rev 营业总收入, revY 同比, revQ 环比, ni 净利润, niY 同比, niQ 环比,
     bvps 每股净资产, roe 净资产收益率(年初至今净利润/期末净资产), ocf 每股经营现金流(年初至今),
     gm 销售毛利率(本季度)
@@ -78,7 +79,7 @@ def durations(facts, concepts, unit="USD", ns="us-gaap"):
             old = best.get(k)
             if old is None or rank < old[0] or (rank == old[0] and e["filed"] > old[1]["filed"]):
                 best[k] = (rank, e)
-    return [(D(k[0]), D(k[1]), v[1]["val"], v[1]["filed"]) for k, v in best.items()]
+    return [(D(k[0]), D(k[1]), v[1]["val"], v[1]["filed"], v[1].get("fy"), v[1].get("fp")) for k, v in best.items()]
 
 
 def instants(facts, concepts, unit="USD", ns="us-gaap"):
@@ -98,12 +99,12 @@ def quarter(ds, end, tol=10):
     c = [x for x in ds if abs((x[1] - end).days) <= tol and 75 <= (x[1] - x[0]).days <= 105]
     if c:
         x = min(c, key=lambda x: abs((x[1] - end).days))
-        return x[2], x[1], x[3]
+        return x[2], x[1], x[3], x[4], x[5]
     for a in (x for x in ds if abs((x[1] - end).days) <= tol and 340 <= (x[1] - x[0]).days <= 380):
         ytd = [y for y in ds if y[0] == a[0] and 255 <= (y[1] - y[0]).days <= 290 and 60 <= (a[1] - y[1]).days <= 105]
         if ytd:
             y = max(ytd, key=lambda y: y[1])
-            return a[2] - y[2], a[1], a[3]
+            return a[2] - y[2], a[1], a[3], a[4], "Q4"
     return None
 
 
@@ -127,7 +128,7 @@ def growth(cur, prev):
 def combine(a, b):
     """两组区间事实按相同起止日期相加（银行：净利息收入 + 非利息收入 = 净营收）。"""
     bm = {(x[0], x[1]): x for x in b}
-    return [(x[0], x[1], x[2] + bm[(x[0], x[1])][2], max(x[3], bm[(x[0], x[1])][3]))
+    return [(x[0], x[1], x[2] + bm[(x[0], x[1])][2], max(x[3], bm[(x[0], x[1])][3]), x[4], x[5])
             for x in a if (x[0], x[1]) in bm]
 
 
@@ -200,8 +201,10 @@ def build_row(cik, doc):
     ytd_ocf = ytd(durations(facts, OCF), end)
 
     filed = max(x[2] for x in (r, n) if x)
+    src = r or n
+    fq = f"FY{src[3]} {src[4]}" if src[3] and src[4] else None  # 公司自己的财年季度，如 FY2026 Q4
     return {
-        "cik": cik, "cq": cal_quarter(end), "end": end.isoformat(), "d": filed,
+        "cik": cik, "cq": cal_quarter(end), "fq": fq, "end": end.isoformat(), "d": filed,
         "eps": e[0] if e else None,
         "rev": r[0] if r else None, "revY": growth(r and r[0], r_y and r_y[0]), "revQ": growth(r and r[0], r_q and r_q[0]),
         "ni": n[0] if n else None, "niY": growth(n and n[0], n_y and n_y[0]), "niQ": growth(n and n[0], n_q and n_q[0]),
