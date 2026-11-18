@@ -13,11 +13,13 @@
     company_tickers_exchange.json   代码与交易所，用于只保留当前上市公司
 
 输出字段（金额单位：美元；增长率单位：%）：
+    （每家公司输出最近 8 个报告期，每期一条记录；rt 为报告类型：Q1 一季报 / H1 中报 / 9M 三季报 / FY 年报）
+    eps rev revY ni niY gm 均为年初至今累计值；revQ niQ 为最新单季相对上一季的环比
     t 代码, n 名称, ex 交易所, ind 行业, cq 日历季度(如 2026Q3，按季末日期归类，便于跨公司比较),
     fq 公司财季(如 FY2026 Q4), end 报告期末, d 公告日期,
-    eps 每股收益(稀释优先), rev 营业总收入, revY 同比, revQ 环比, ni 净利润, niY 同比, niQ 环比,
+    eps 累计每股收益(稀释优先), rev 累计营业总收入, revY 同比, revQ 季度环比, ni 累计净利润, niY 同比, niQ 季度环比,
     bvps 每股净资产, roe 净资产收益率(年初至今净利润/期末净资产), ocf 每股经营现金流(年初至今),
-    gm 销售毛利率(本季度)
+    gm 累计销售毛利率
 说明：Q4 没有单独的 10-Q，脚本用「全年 − 前三季度累计」推算。
 """
 import argparse, json, os, re, sys, time, urllib.request, zipfile
@@ -132,17 +134,40 @@ def combine(a, b):
             for x in a if (x[0], x[1]) in bm]
 
 
-def latest_end(*series):
+def period_ends(series, n):
+    """最近 n 个报告期末（相隔 12 天以内的视为同一期）。"""
     cands = set()
     for ds in series:
         for x in ds:
-            n = (x[1] - x[0]).days
-            if 75 <= n <= 105 or 340 <= n <= 380:
+            d = (x[1] - x[0]).days
+            if 75 <= d <= 105 or 340 <= d <= 380:
                 cands.add(x[1])
+    out = []
     for e in sorted(cands, reverse=True):
+        if any(abs((e - o).days) <= 12 for o in out):
+            continue
         if any(quarter(ds, e, 3) for ds in series):
-            return e
-    return None
+            out.append(e)
+        if len(out) >= n:
+            break
+    return out
+
+
+def ytd_pair(ds, end, tol=10):
+    """年初至今累计：(本期值, 去年同期值, 天数)。取同一会计年度内最长的区间。"""
+    c = [x for x in ds if abs((x[1] - end).days) <= tol and 75 <= (x[1] - x[0]).days <= 380]
+    if not c:
+        return None
+    cur = max(c, key=lambda x: (x[1] - x[0]).days)
+    dur = (cur[1] - cur[0]).days
+    py = cur[1] - timedelta(days=364)
+    p = [x for x in ds if abs((x[1] - py).days) <= tol and abs((x[1] - x[0]).days - dur) <= 12]
+    prev = min(p, key=lambda x: abs((x[1] - py).days))[2] if p else None
+    return cur[2], prev, dur
+
+
+def report_type(days):
+    return "Q1" if days < 120 else "H1" if days < 220 else "9M" if days < 320 else "FY"
 
 
 def cal_quarter(end):
@@ -164,55 +189,63 @@ def shares_out(facts, ds_basic, end):
     return q[0] if q else None
 
 
-def build_row(cik, doc):
+def build_rows(cik, doc, n_periods):
+    """返回该公司最近 n_periods 个报告期的记录（新到旧）。每条同时含单季度值与年初至今累计值。"""
     facts = doc.get("facts", {})
     rev, ni = durations(facts, REV), durations(facts, NI)
     # 银行等金融公司常无 Revenues 标签：用 净利息收入 + 非利息收入 补足缺失的区间
     have = {(x[0], x[1]) for x in rev}
     rev += [x for x in combine(durations(facts, ["InterestIncomeExpenseNet"]), durations(facts, ["NoninterestIncome"]))
             if (x[0], x[1]) not in have]
-    end = latest_end(rev, ni)
-    if not end:
-        return None
-    r, n = quarter(rev, end, 3), quarter(ni, end, 3)
-    if not (r or n):
-        return None
-    py, pq = end - timedelta(days=364), end - timedelta(days=91)
-    r_y, r_q = quarter(rev, py), quarter(rev, pq, 12)
-    n_y, n_q = quarter(ni, py), quarter(ni, pq, 12)
-
     eps_ds = durations(facts, EPS_D, "USD/shares") or durations(facts, EPS_B, "USD/shares")
     eps_b = durations(facts, EPS_B, "USD/shares")
-    e = quarter(eps_ds, end, 3) or quarter(eps_b, end, 3)
+    gp, cogs, ocf = durations(facts, GP), durations(facts, COGS), durations(facts, OCF)
+    eq, sh_ds = instants(facts, EQ), durations(facts, SH_DUR, "shares")
 
-    gp = quarter(durations(facts, GP), end, 3)
-    gm = None
-    if r and r[0] > 0:
-        if gp:
-            gm = round(gp[0] / r[0] * 100, 2)
-        else:
-            cg = quarter(durations(facts, COGS), end, 3)
-            if cg:
-                gm = round((r[0] - cg[0]) / r[0] * 100, 2)
+    out = []
+    for end in period_ends([rev, ni], n_periods):
+        # 单季值只用于计算季度环比、公告日期和财季标签，不作为数据输出
+        r, n = quarter(rev, end, 3), quarter(ni, end, 3)
+        if not (r or n):
+            continue
+        r_q, n_q = quarter(rev, end - timedelta(days=91), 12), quarter(ni, end - timedelta(days=91), 12)
 
-    equity = at(instants(facts, EQ), end)
-    sh = shares_out(facts, durations(facts, SH_DUR, "shares"), end)
-    ytd_ni = ytd(ni, end)
-    ytd_ocf = ytd(durations(facts, OCF), end)
+        # ---- 年初至今累计（一季报 / 中报 / 三季报 / 年报）----
+        cr, cn, ce = ytd_pair(rev, end), ytd_pair(ni, end), ytd_pair(eps_ds, end) or ytd_pair(eps_b, end)
+        dur = next((p[2] for p in (cr, cn, ce) if p), None)
+        if not dur:
+            continue
+        same = lambda p: p if p and abs(p[2] - dur) <= 12 else None
+        cr, cn, ce = same(cr), same(cn), same(ce)
+        gm = None
+        if cr and cr[0] > 0:
+            g_ = same(ytd_pair(gp, end))
+            if g_:
+                gm = round(g_[0] / cr[0] * 100, 2)
+            else:
+                cc = same(ytd_pair(cogs, end))
+                if cc:
+                    gm = round((cr[0] - cc[0]) / cr[0] * 100, 2)
 
-    filed = max(x[2] for x in (r, n) if x)
-    src = r or n
-    fq = f"FY{src[3]} {src[4]}" if src[3] and src[4] else None  # 公司自己的财年季度，如 FY2026 Q4
-    return {
-        "cik": cik, "cq": cal_quarter(end), "fq": fq, "end": end.isoformat(), "d": filed,
-        "eps": e[0] if e else None,
-        "rev": r[0] if r else None, "revY": growth(r and r[0], r_y and r_y[0]), "revQ": growth(r and r[0], r_q and r_q[0]),
-        "ni": n[0] if n else None, "niY": growth(n and n[0], n_y and n_y[0]), "niQ": growth(n and n[0], n_q and n_q[0]),
-        "bvps": round(equity / sh, 2) if equity is not None and sh else None,
-        "roe": round(ytd_ni / equity * 100, 2) if ytd_ni is not None and equity and equity > 0 else None,
-        "ocf": round(ytd_ocf / sh, 4) if ytd_ocf is not None and sh else None,
-        "gm": gm,
-    }
+        equity = at(eq, end)
+        sh = shares_out(facts, sh_ds, end)
+        yo = ytd_pair(ocf, end)
+        filed = max(x[2] for x in (r, n) if x)
+        src = r or n
+        row = {
+            "cik": cik, "cq": cal_quarter(end), "end": end.isoformat(), "d": filed,
+            "fq": f"FY{src[3]} {src[4]}" if src[3] and src[4] else None,  # 公司自己的财年季度，如 FY2026 Q4
+            "rt": report_type(dur),  # Q1 一季报 / H1 中报 / 9M 三季报 / FY 年报
+            "eps": ce[0] if ce else None,
+            "rev": cr[0] if cr else None, "revY": growth(cr and cr[0], cr and cr[1]), "revQ": growth(r and r[0], r_q and r_q[0]),
+            "ni": cn[0] if cn else None, "niY": growth(cn and cn[0], cn and cn[1]), "niQ": growth(n and n[0], n_q and n_q[0]),
+            "bvps": round(equity / sh, 2) if equity is not None and sh else None,
+            "roe": round(cn[0] / equity * 100, 2) if cn and equity and equity > 0 else None,
+            "ocf": round(yo[0] / sh, 4) if yo and sh else None,
+            "gm": gm,
+        }
+        out.append({k: v for k, v in row.items() if v is not None})
+    return out
 
 
 def main():
@@ -221,7 +254,8 @@ def main():
     ap.add_argument("--out", default="data.json")
     ap.add_argument("--no-industry", action="store_true", help="不下载 submissions.zip（行业列为空）")
     ap.add_argument("--include-otc", action="store_true", help="包含场外（OTC）股票")
-    ap.add_argument("--max-age-days", type=int, default=400, help="忽略报告期早于此天数的公司")
+    ap.add_argument("--max-age-days", type=int, default=400, help="忽略最新报告期早于此天数的公司")
+    ap.add_argument("--periods", type=int, default=8, help="每家公司保留最近多少个报告期（默认 8 个季度）")
     a = ap.parse_args()
 
     ua = os.environ.get("SEC_USER_AGENT", "")
@@ -269,21 +303,23 @@ def main():
                 continue
             cik = int(m.group(1))
             try:
-                row = build_row(cik, json.load(z.open(name)))
+                recs = build_rows(cik, json.load(z.open(name)), a.periods)
             except Exception as ex:  # 单个公司数据异常不应中断全量
                 log(f"跳过 {name}: {ex}")
                 continue
-            if not row or (today - D(row["end"])).days > a.max_age_days:
+            if not recs or (today - D(recs[0]["end"])).days > a.max_age_days:
                 continue
             t, n, ex = listed[cik]
-            row.update({"t": t, "n": n, "ex": ex, "ind": industry.get(cik, "")})
-            row.pop("cik")
-            rows.append(row)
+            for row in recs:
+                row.update({"t": t, "n": n, "ex": ex, "ind": industry.get(cik, "")})
+                row.pop("cik")
+                rows.append(row)
 
-    out = {"updated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"), "count": len(rows), "rows": rows}
+    companies = len({r["t"] for r in rows})
+    out = {"updated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"), "count": companies, "records": len(rows), "rows": rows}
     with open(a.out, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
-    log(f"完成：{len(rows)} 家公司 -> {a.out}")
+    log(f"完成：{companies} 家公司，{len(rows)} 条报告期记录 -> {a.out}")
 
 
 if __name__ == "__main__":
