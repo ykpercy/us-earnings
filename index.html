@@ -4,10 +4,12 @@ title: 美股业绩大全
 ---
 {% raw %}
 <style>
-/* 全部样式限定在 #us 内，避免和 minima 主题冲突；放宽主题默认 800px 的内容宽度 */
+/* 全部样式限定在 #us 内，避免和 minima 主题冲突；内容区突破主题默认窄栏，占满浏览器宽度 */
 .site-header .wrapper,.page-content>.wrapper,.site-footer .wrapper{max-width:1700px}
 html,body{overflow-x:hidden}
 #us{width:100vw;position:relative;left:50%;margin-left:-50vw;padding:0 12px;box-sizing:border-box}
+/* 内容整体居中：标题、筛选、说明、表格共用同一个居中的栏（表格布局本身不变） */
+#us>h1,#us>.meta,#us>#load,#us>#app{max-width:1340px;margin-left:auto!important;margin-right:auto!important}
 #us{--bg:#fff;--fg:#1f2329;--mute:#8a919c;--line:#e3e6ea;--head:#eef1f6;--zebra:#f8f9fb;--up:#e5262b;--down:#12a150;--accent:#1d4e9e;--hl:#e8eefb;color:var(--fg);font-size:14px}
 #us h1{font-size:22px;margin:0}
 #us .meta{color:var(--mute);font-size:12px;margin-top:2px}
