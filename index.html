@@ -104,8 +104,9 @@ function init(d){
  ALL=d.rows;$("load").style.display="none";$("app").hidden=false;
  $("meta").textContent=`数据更新于 ${d.updated}｜共 ${d.count} 家上市公司，${ALL.length} 条报告期记录`;
  const cnt={};ALL.forEach(r=>cnt[r.cq]=(cnt[r.cq]||0)+1);
- const cqs=Object.keys(cnt).filter(k=>cnt[k]>=20).sort().reverse();
- opts("cq",cqs,true);f.cq=cqs[0]||"";$("cq").value=f.cq;
+ const all=Object.keys(cnt).sort().reverse(),big=all.filter(k=>cnt[k]>=20);
+ $("cq").innerHTML=`<option value="">全部</option>`+all.map(k=>`<option value="${k}">${k}（${cnt[k]}）</option>`).join("");
+ f.cq=big[0]||all[0]||"";$("cq").value=f.cq; // 下拉列出全部报告期；默认选记录数足够多的最新一期
  opts("ex",[...new Set(ALL.map(r=>r.ex).filter(Boolean))].sort(),true);
  render()}
 document.querySelector("thead").addEventListener("click",e=>{const t=e.target.closest("th.s");if(!t)return;const k=t.dataset.k;
