@@ -1,42 +1,35 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>美股业绩大全</title>
+---
+layout: default
+title: 美股业绩大全
+---
+{% raw %}
 <style>
-:root{--bg:#fff;--fg:#1f2329;--mute:#8a919c;--line:#e3e6ea;--head:#eef1f6;--zebra:#f8f9fb;--up:#e5262b;--down:#12a150;--accent:#1d4e9e;--hl:#e8eefb;color-scheme:light;
-box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--fg:#e6e8eb;--mute:#7d8693;--line:#2c323a;--head:#222831;--zebra:#1a1e24;--up:#ff5a5f;--down:#3ddc84;--accent:#7aa7ff;--hl:#232c3d;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#15181d;--fg:#e6e8eb;--mute:#7d8693;--line:#2c323a;--head:#222831;--zebra:#1a1e24;--up:#ff5a5f;--down:#3ddc84;--accent:#7aa7ff;--hl:#232c3d;color-scheme:dark}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
-body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,"PingFang SC","Microsoft YaHei",Helvetica,Arial,sans-serif}
-.wrap{max-width:1400px;margin:0 auto;padding:16px}
-h1{font-size:20px;margin:0}
-.meta{color:var(--mute);font-size:12px;margin-top:2px}
-.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0}
-.bar label{font-size:13px;color:var(--mute)}
-input,select,button{padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);font-size:13px}
-input[type=search]{width:190px}
-button{cursor:pointer}button:disabled{opacity:.4;cursor:default}
-.note{font-size:12px;color:var(--mute);border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:0 0 12px}
-.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:6px}
-table{border-collapse:collapse;width:100%;min-width:1240px;text-align:center;white-space:nowrap}
-th,td{padding:8px;border-bottom:1px solid var(--line);border-right:1px solid var(--line)}
-th:last-child,td:last-child{border-right:0}
-th{background:var(--head);font-weight:600}
-th.s{cursor:pointer;user-select:none}th.s:hover,th.on{color:var(--accent)}
-.ar{display:inline-block;width:1em;font-size:11px}
-tbody tr:nth-child(even){background:var(--zebra)}tbody tr:hover{background:var(--hl)}
-.up{color:var(--up)}.down{color:var(--down)}.na{color:var(--mute)}
-.tk{color:var(--accent);font-weight:600}a{color:var(--accent);text-decoration:none}
-td.nm{text-align:left;max-width:220px;overflow:hidden;text-overflow:ellipsis}
-.pg{display:flex;gap:10px;align-items:center;justify-content:center;margin:12px 0;font-size:13px}
-#load{display:none;border:1px dashed var(--line);border-radius:8px;padding:24px;text-align:center;color:var(--mute);margin:12px 0}
+/* 全部样式限定在 #us 内，避免和 minima 主题冲突；放宽主题默认 800px 的内容宽度 */
+.site-header .wrapper,.page-content>.wrapper,.site-footer .wrapper{max-width:1400px}
+#us{--bg:#fff;--fg:#1f2329;--mute:#8a919c;--line:#e3e6ea;--head:#eef1f6;--zebra:#f8f9fb;--up:#e5262b;--down:#12a150;--accent:#1d4e9e;--hl:#e8eefb;color:var(--fg);font-size:14px}
+#us h1{font-size:22px;margin:0}
+#us .meta{color:var(--mute);font-size:12px;margin-top:2px}
+#us .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0}
+#us .bar label{font-size:13px;color:var(--mute)}
+#us input,#us select,#us button{padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);font-size:13px;font-family:inherit}
+#us input[type=search]{width:190px}
+#us button{cursor:pointer}#us button:disabled{opacity:.4;cursor:default}
+#us .note{font-size:12px;color:var(--mute);border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:0 0 12px}
+#us .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:6px}
+#us table{border-collapse:collapse;width:100%;min-width:1560px;text-align:center;white-space:nowrap;margin:0;border:0}
+#us th,#us td{padding:8px;border:0;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:center}
+#us th:last-child,#us td:last-child{border-right:0}
+#us th{background:var(--head);font-weight:600}
+#us th.s{cursor:pointer;user-select:none}#us th.s:hover,#us th.on{color:var(--accent)}
+#us .ar{display:inline-block;width:1em;font-size:11px}
+#us tbody tr:nth-child(even){background:var(--zebra)}#us tbody tr:hover{background:var(--hl)}
+#us .up{color:var(--up)}#us .down{color:var(--down)}#us .na{color:var(--mute)}
+#us .tk{color:var(--accent);font-weight:600}#us a{color:var(--accent);text-decoration:none}
+#us td.nm{text-align:left;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+#us .pg{display:flex;gap:10px;align-items:center;justify-content:center;margin:12px 0;font-size:13px}
+#us #load{display:none;border:1px dashed var(--line);border-radius:8px;padding:24px;text-align:center;color:var(--mute);margin:12px 0}
 </style>
-</head>
-<body>
-<div class="wrap">
+<div id="us">
   <h1 id="title">美股业绩大全</h1>
   <div class="meta" id="meta">加载中…</div>
   <div id="load">未能读取 data.json。请把 index.html 与 data.json 放在同一目录并通过 http 访问，或在此选择文件：<br><br><input type="file" id="file" accept=".json"></div>
@@ -45,10 +38,11 @@ td.nm{text-align:left;max-width:220px;overflow:hidden;text-overflow:ellipsis}
       <label>报告期 <select id="cq"></select></label>
       <label>行业 <select id="ind"></select></label>
       <label>交易所 <select id="ex"></select></label>
+      <label>报告类型 <select id="rt"><option value="">全部</option><option value="Q1">一季报</option><option value="H1">中报</option><option value="9M">三季报</option><option value="FY">年报</option></select></label>
       <input id="q" type="search" placeholder="搜索代码或名称" aria-label="搜索">
       <span class="meta" id="cnt"></span>
     </div>
-    <div class="note">数据来源：SEC EDGAR（XBRL），仅供参考，不构成投资建议。红涨绿跌；金额单位为美元（亿／万）。净资产收益率为年初至今净利润 ÷ 期末净资产，每股经营现金流为年初至今；Q4 为全年减前三季度推算。“—” 表示该项在财报中无对应数据。</div>
+    <div class="note">数据来源：SEC EDGAR（XBRL），仅供参考，不构成投资建议。红涨绿跌；金额单位为美元（亿／万）。净资产收益率为年初至今净利润 ÷ 期末净资产，每股经营现金流为年初至今；营收、净利润、每股收益、毛利率均为年初至今累计值（一季报、中报、三季报、年报分别对应 3、6、9、12 个月），同比对比去年同期；季度环比为最新单季相对上一季度的变化；净资产收益率与每股经营现金流为年初至今。“报告期”按季末日期所在的日历季度归类（便于跨公司比较），“公司财季”显示公司自己的财年季度，例如美光 9 月初结束的季度属于日历 Q3，但是其财年 Q4。“—” 表示该项在财报中无对应数据。</div>
     <div class="scroll"><table><thead><tr id="h1"></tr><tr id="h2"></tr></thead><tbody id="bd"></tbody></table></div>
     <div class="pg"><button id="prev">上一页</button><span id="pn"></span><button id="next">下一页</button>
       <select id="ps"><option>50</option><option>100</option><option>200</option></select> 条/页</div>
@@ -62,22 +56,25 @@ G("eps","每股收益<br>(美元)",{g:"r",c:1}),
 G("rev","营业总收入<br>(美元)",{g:"营业总收入",m:1}),G("revY","同比增长<br>(%)",{g:"营业总收入",p:1,c:1}),G("revQ","季度环比<br>增长(%)",{g:"营业总收入",p:1,c:1}),
 G("ni","净利润<br>(美元)",{g:"净利润",m:1,c:1}),G("niY","同比增长<br>(%)",{g:"净利润",p:1,c:1}),G("niQ","季度环比<br>增长(%)",{g:"净利润",p:1,c:1}),
 G("bvps","每股净资产<br>(美元)",{g:"r"}),G("roe","净资产<br>收益率(%)",{g:"r",c:1}),G("ocf","每股经营<br>现金流量",{g:"r"}),G("gm","销售<br>毛利率(%)",{g:"r"}),
-G("ind","所处行业",{txt:1,g:"r"}),G("d","最新公告<br>日期",{txt:1,g:"r"})
+G("ind","所处行业",{txt:1,g:"r"}),G("rt","报告类型",{txt:1,g:"r"}),G("fq","公司财季",{txt:1,g:"r"}),G("end","报告期末",{txt:1,g:"r"}),G("d","最新公告<br>日期",{txt:1,g:"r"})
 ];
+const RT={Q1:"一季报",H1:"中报","9M":"三季报",FY:"年报"};
 const $=id=>document.getElementById(id);
-let ALL=[],sk="d",dir=-1,page=0,f={cq:"",ind:"",ex:"",q:""};
+let ALL=[],sk="d",dir=-1,page=0,f={cq:"",ind:"",ex:"",rt:"",q:""};
+const key=c=>c.k;
 
 function money(v){const a=Math.abs(v);return a>=1e8?(v/1e8).toFixed(2)+"亿":a>=1e4?(v/1e4).toFixed(2)+"万":v.toFixed(0)}
 function cell(r,c,i){
  if(c.k==="idx")return `<td>${i}</td>`;
  if(c.k==="rel")return `<td><a href="https://finance.yahoo.com/quote/${encodeURIComponent(r.t)}" target="_blank" rel="noopener">详细</a></td>`;
- const v=r[c.k];if(v==null||v==="")return `<td class="na">—</td>`;
+ const v=r[key(c)];if(v==null||v==="")return `<td class="na">—</td>`;
  if(c.k==="t")return `<td class="tk">${v}</td>`;
  if(c.k==="n")return `<td class="nm" title="${v.replace(/"/g,"&quot;")}">${v}</td>`;
  if(c.k==="d")return `<td>${v.slice(5)}</td>`;
+ if(c.k==="rt")return `<td>${RT[v]||v}</td>`;
  if(c.txt)return `<td>${v}</td>`;
  const cl=c.c?(v>0?"up":v<0?"down":""):"";
- const s=c.m?money(v):c.p?(v>0?"+":"")+v.toFixed(2):(c.k==="eps"||c.k==="bvps"||c.k==="ocf")?v.toFixed(2):v.toFixed(2);
+ const s=c.m?money(v):c.p?(v>0?"+":"")+v.toFixed(2):v.toFixed(2);
  return `<td class="${cl}">${s}</td>`}
 function th(c,rs){const on=c.k===sk;return `<th class="${c.ns?"":"s"} ${on?"on":""}" ${rs?'rowspan="2"':""} data-k="${c.k}">${c.l}${c.ns?"":`<span class="ar">${on?(dir>0?"▲":"▼"):""}</span>`}</th>`}
 function head(){let a="",b="",i=0;
@@ -85,39 +82,37 @@ function head(){let a="",b="",i=0;
   if(c.g==="r"){a+=th(c,1);i++}
   else{let j=i;while(j<COLS.length&&COLS[j].g===c.g)j++;a+=`<th colspan="${j-i}">${c.g}</th>`;for(let x=i;x<j;x++)b+=th(COLS[x]);i=j}}
  $("h1").innerHTML=a;$("h2").innerHTML=b}
+function title(){const q=f.cq;$("title").textContent=(q?`${q.slice(0,4)}年${q.slice(4)}`:"")+"业绩大全（美股）"+(f.rt?"·"+RT[f.rt]:"")}
 function filtered(){
- const q=f.q.toLowerCase();
- const rows=ALL.filter(r=>(!f.cq||r.cq===f.cq)&&(!f.ind||r.ind===f.ind)&&(!f.ex||r.ex===f.ex)&&(!q||(r.t+" "+r.n).toLowerCase().includes(q)));
- rows.sort((a,b)=>{const x=a[sk],y=b[sk],nx=x==null||x==="",ny=y==null||y==="";
+ const q=f.q.toLowerCase(),col=COLS.find(c=>c.k===sk),kk=key(col);
+ const rows=ALL.filter(r=>(!f.cq||r.cq===f.cq)&&(!f.ind||r.ind===f.ind)&&(!f.ex||r.ex===f.ex)&&(!f.rt||r.rt===f.rt)&&(!q||(r.t+" "+r.n).toLowerCase().includes(q)));
+ rows.sort((a,b)=>{const x=a[kk],y=b[kk],nx=x==null||x==="",ny=y==null||y==="";
   if(nx||ny)return nx&&ny?0:nx?1:-1; // 空值始终排末尾
   return typeof x==="string"?x.localeCompare(y)*dir:(x-y)*dir});
  return rows}
 function render(){
- head();const rows=filtered(),ps=+$("ps").value,pages=Math.max(1,Math.ceil(rows.length/ps));
+ head();title();const rows=filtered(),ps=+$("ps").value,pages=Math.max(1,Math.ceil(rows.length/ps));
  page=Math.min(page,pages-1);
  $("bd").innerHTML=rows.slice(page*ps,page*ps+ps).map((r,i)=>"<tr>"+COLS.map(c=>cell(r,c,page*ps+i+1)).join("")+"</tr>").join("");
- $("cnt").textContent=`共 ${rows.length} 家`;$("pn").textContent=`${page+1} / ${pages}`;
+ $("cnt").textContent=`共 ${rows.length} 条`;$("pn").textContent=`${page+1} / ${pages}`;
  $("prev").disabled=page===0;$("next").disabled=page>=pages-1}
 function opts(sel,vals,all){$(sel).innerHTML=(all?`<option value="">全部</option>`:"")+vals.map(v=>`<option value="${v}">${v||"（未分类）"}</option>`).join("")}
 function init(d){
  ALL=d.rows;$("load").style.display="none";$("app").hidden=false;
- $("meta").textContent=`数据更新于 ${d.updated}｜共 ${d.count} 家上市公司`;
+ $("meta").textContent=`数据更新于 ${d.updated}｜共 ${d.count} 家上市公司，${ALL.length} 条报告期记录`;
  const cnt={};ALL.forEach(r=>cnt[r.cq]=(cnt[r.cq]||0)+1);
  const cqs=Object.keys(cnt).filter(k=>cnt[k]>=20).sort().reverse();
  opts("cq",cqs,true);f.cq=cqs[0]||"";$("cq").value=f.cq;
  opts("ind",[...new Set(ALL.map(r=>r.ind).filter(Boolean))].sort(),true);
  opts("ex",[...new Set(ALL.map(r=>r.ex).filter(Boolean))].sort(),true);
- $("title").textContent=f.cq?`${f.cq.slice(0,4)}年${f.cq.slice(4)}季报业绩大全（美股）`:"美股业绩大全";
  render()}
 document.querySelector("thead").addEventListener("click",e=>{const t=e.target.closest("th.s");if(!t)return;const k=t.dataset.k;
- if(k===sk)dir=-dir;else{sk=k;dir=COLS.find(c=>c.k===k).txt&&k!=="d"?1:-1}page=0;render()});
-for(const [id,key] of [["cq","cq"],["ind","ind"],["ex","ex"]])$(id).addEventListener("change",e=>{f[key]=e.target.value;page=0;
- if(key==="cq")$("title").textContent=f.cq?`${f.cq.slice(0,4)}年${f.cq.slice(4)}季报业绩大全（美股）`:"美股业绩大全";render()});
+ if(k===sk)dir=-dir;else{sk=k;dir=COLS.find(c=>c.k===k).txt&&k!=="d"&&k!=="end"?1:-1}page=0;render()});
+for(const [id,k] of [["cq","cq"],["ind","ind"],["ex","ex"],["rt","rt"]])$(id).addEventListener("change",e=>{f[k]=e.target.value;page=0;render()});
 $("q").addEventListener("input",e=>{f.q=e.target.value.trim();page=0;render()});
 $("ps").addEventListener("change",()=>{page=0;render()});
 $("prev").onclick=()=>{page--;render()};$("next").onclick=()=>{page++;render()};
 $("file").addEventListener("change",e=>{const fl=e.target.files[0];if(!fl)return;fl.text().then(t=>init(JSON.parse(t)))});
 fetch("data.json",{cache:"no-store"}).then(r=>{if(!r.ok)throw 0;return r.json()}).then(init).catch(()=>{$("meta").textContent="";$("load").style.display="block"});
 </script>
-</body>
-</html>
+{% endraw %}
