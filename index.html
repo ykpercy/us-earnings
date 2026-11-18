@@ -5,7 +5,7 @@ title: 美股业绩大全
 {% raw %}
 <style>
 /* 全部样式限定在 #us 内，避免和 minima 主题冲突；放宽主题默认 800px 的内容宽度 */
-.site-header .wrapper,.page-content>.wrapper,.site-footer .wrapper{max-width:1400px}
+.site-header .wrapper,.page-content>.wrapper,.site-footer .wrapper{max-width:1700px}
 #us{--bg:#fff;--fg:#1f2329;--mute:#8a919c;--line:#e3e6ea;--head:#eef1f6;--zebra:#f8f9fb;--up:#e5262b;--down:#12a150;--accent:#1d4e9e;--hl:#e8eefb;color:var(--fg);font-size:14px}
 #us h1{font-size:22px;margin:0}
 #us .meta{color:var(--mute);font-size:12px;margin-top:2px}
@@ -16,18 +16,19 @@ title: 美股业绩大全
 #us button{cursor:pointer}#us button:disabled{opacity:.4;cursor:default}
 #us .note{font-size:12px;color:var(--mute);border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:0 0 12px}
 #us .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:6px}
-#us table{border-collapse:collapse;width:100%;min-width:1560px;text-align:center;white-space:nowrap;margin:0;border:0}
-#us th,#us td{padding:8px;border:0;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:center}
+#us table{border-collapse:collapse;width:100%;font-size:12.5px;text-align:center;white-space:nowrap;margin:0;border:0}
+#us th,#us td{padding:6px 4px;border:0;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:center}
 #us th:last-child,#us td:last-child{border-right:0}
 #us th{background:var(--head);font-weight:600}
 #us th.s{cursor:pointer;user-select:none}#us th.s:hover,#us th.on{color:var(--accent)}
-#us .ar{display:inline-block;width:1em;font-size:11px}
+#us .ar{display:inline-block;width:.8em;font-size:10px}
 #us tbody tr:nth-child(even){background:var(--zebra)}#us tbody tr:hover{background:var(--hl)}
 #us .up{color:var(--up)}#us .down{color:var(--down)}#us .na{color:var(--mute)}
 #us .tk{color:var(--accent);font-weight:600}#us a{color:var(--accent);text-decoration:none}
-#us td.nm{text-align:left;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+#us td.nm{text-align:left;white-space:normal;max-width:130px;line-height:1.3}
 #us .pg{display:flex;gap:10px;align-items:center;justify-content:center;margin:12px 0;font-size:13px}
 #us #load{display:none;border:1px dashed var(--line);border-radius:8px;padding:24px;text-align:center;color:var(--mute);margin:12px 0}
+#us .sub{font-size:11px;color:var(--mute)}
 </style>
 <div id="us">
   <h1 id="title">美股业绩大全</h1>
@@ -36,7 +37,6 @@ title: 美股业绩大全
   <div id="app" hidden>
     <div class="bar">
       <label>报告期 <select id="cq"></select></label>
-      <label>行业 <select id="ind"></select></label>
       <label>交易所 <select id="ex"></select></label>
       <label>报告类型 <select id="rt"><option value="">全部</option><option value="Q1">一季报</option><option value="H1">中报</option><option value="9M">三季报</option><option value="FY">年报</option></select></label>
       <input id="q" type="search" placeholder="搜索代码或名称" aria-label="搜索">
@@ -56,11 +56,11 @@ G("eps","每股收益<br>(美元)",{g:"r",c:1}),
 G("rev","营业总收入<br>(美元)",{g:"营业总收入",m:1}),G("revY","同比增长<br>(%)",{g:"营业总收入",p:1,c:1}),G("revQ","季度环比<br>增长(%)",{g:"营业总收入",p:1,c:1}),
 G("ni","净利润<br>(美元)",{g:"净利润",m:1,c:1}),G("niY","同比增长<br>(%)",{g:"净利润",p:1,c:1}),G("niQ","季度环比<br>增长(%)",{g:"净利润",p:1,c:1}),
 G("bvps","每股净资产<br>(美元)",{g:"r"}),G("roe","净资产<br>收益率(%)",{g:"r",c:1}),G("ocf","每股经营<br>现金流量",{g:"r"}),G("gm","销售<br>毛利率(%)",{g:"r"}),
-G("ind","所处行业",{txt:1,g:"r"}),G("rt","报告类型",{txt:1,g:"r"}),G("fq","公司财季",{txt:1,g:"r"}),G("end","报告期末",{txt:1,g:"r"}),G("d","最新公告<br>日期",{txt:1,g:"r"})
+G("rt","报告类型<br>(财季)",{txt:1,g:"r"}),G("end","报告期末",{txt:1,g:"r"}),G("d","最新公告<br>日期",{txt:1,g:"r"})
 ];
 const RT={Q1:"一季报",H1:"中报","9M":"三季报",FY:"年报"};
 const $=id=>document.getElementById(id);
-let ALL=[],sk="d",dir=-1,page=0,f={cq:"",ind:"",ex:"",rt:"",q:""};
+let ALL=[],sk="d",dir=-1,page=0,f={cq:"",ex:"",rt:"",q:""};
 const key=c=>c.k;
 
 function money(v){const a=Math.abs(v);return a>=1e8?(v/1e8).toFixed(2)+"亿":a>=1e4?(v/1e4).toFixed(2)+"万":v.toFixed(0)}
@@ -71,7 +71,8 @@ function cell(r,c,i){
  if(c.k==="t")return `<td class="tk">${v}</td>`;
  if(c.k==="n")return `<td class="nm" title="${v.replace(/"/g,"&quot;")}">${v}</td>`;
  if(c.k==="d")return `<td>${v.slice(5)}</td>`;
- if(c.k==="rt")return `<td>${RT[v]||v}</td>`;
+ if(c.k==="rt")return `<td>${RT[v]||v}<div class="sub">${r.fq||""}</div></td>`;
+ if(c.k==="end")return `<td>${v.slice(2)}</td>`;
  if(c.txt)return `<td>${v}</td>`;
  const cl=c.c?(v>0?"up":v<0?"down":""):"";
  const s=c.m?money(v):c.p?(v>0?"+":"")+v.toFixed(2):v.toFixed(2);
@@ -85,7 +86,7 @@ function head(){let a="",b="",i=0;
 function title(){const q=f.cq;$("title").textContent=(q?`${q.slice(0,4)}年${q.slice(4)}`:"")+"业绩大全（美股）"+(f.rt?"·"+RT[f.rt]:"")}
 function filtered(){
  const q=f.q.toLowerCase(),col=COLS.find(c=>c.k===sk),kk=key(col);
- const rows=ALL.filter(r=>(!f.cq||r.cq===f.cq)&&(!f.ind||r.ind===f.ind)&&(!f.ex||r.ex===f.ex)&&(!f.rt||r.rt===f.rt)&&(!q||(r.t+" "+r.n).toLowerCase().includes(q)));
+ const rows=ALL.filter(r=>(!f.cq||r.cq===f.cq)&&(!f.ex||r.ex===f.ex)&&(!f.rt||r.rt===f.rt)&&(!q||(r.t+" "+r.n).toLowerCase().includes(q)));
  rows.sort((a,b)=>{const x=a[kk],y=b[kk],nx=x==null||x==="",ny=y==null||y==="";
   if(nx||ny)return nx&&ny?0:nx?1:-1; // 空值始终排末尾
   return typeof x==="string"?x.localeCompare(y)*dir:(x-y)*dir});
@@ -103,12 +104,11 @@ function init(d){
  const cnt={};ALL.forEach(r=>cnt[r.cq]=(cnt[r.cq]||0)+1);
  const cqs=Object.keys(cnt).filter(k=>cnt[k]>=20).sort().reverse();
  opts("cq",cqs,true);f.cq=cqs[0]||"";$("cq").value=f.cq;
- opts("ind",[...new Set(ALL.map(r=>r.ind).filter(Boolean))].sort(),true);
  opts("ex",[...new Set(ALL.map(r=>r.ex).filter(Boolean))].sort(),true);
  render()}
 document.querySelector("thead").addEventListener("click",e=>{const t=e.target.closest("th.s");if(!t)return;const k=t.dataset.k;
  if(k===sk)dir=-dir;else{sk=k;dir=COLS.find(c=>c.k===k).txt&&k!=="d"&&k!=="end"?1:-1}page=0;render()});
-for(const [id,k] of [["cq","cq"],["ind","ind"],["ex","ex"],["rt","rt"]])$(id).addEventListener("change",e=>{f[k]=e.target.value;page=0;render()});
+for(const [id,k] of [["cq","cq"],["ex","ex"],["rt","rt"]])$(id).addEventListener("change",e=>{f[k]=e.target.value;page=0;render()});
 $("q").addEventListener("input",e=>{f.q=e.target.value.trim();page=0;render()});
 $("ps").addEventListener("change",()=>{page=0;render()});
 $("prev").onclick=()=>{page--;render()};$("next").onclick=()=>{page++;render()};
