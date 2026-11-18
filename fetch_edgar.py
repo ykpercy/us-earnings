@@ -9,13 +9,13 @@
 
 数据源（均为 SEC 官方免费数据，每晚更新）：
     companyfacts.zip   全部公司的 XBRL 财报事实（约 1GB+）
-    submissions.zip    公司资料，用于取行业（SIC）分类（可用 --no-industry 跳过）
+    submissions.zip    公司资料，仅在加 --industry 时下载，用于输出行业（SIC）分类
     company_tickers_exchange.json   代码与交易所，用于只保留当前上市公司
 
 输出字段（金额单位：美元；增长率单位：%）：
     （每家公司输出最近 8 个报告期，每期一条记录；rt 为报告类型：Q1 一季报 / H1 中报 / 9M 三季报 / FY 年报）
     eps rev revY ni niY gm 均为年初至今累计值；revQ niQ 为最新单季相对上一季的环比
-    t 代码, n 名称, ex 交易所, ind 行业, cq 日历季度(如 2026Q3，按季末日期归类，便于跨公司比较),
+    t 代码, n 名称, ex 交易所, ind 行业(仅 --industry), cq 日历季度(如 2026Q3，按季末日期归类，便于跨公司比较),
     fq 公司财季(如 FY2026 Q4), end 报告期末, d 公告日期,
     eps 累计每股收益(稀释优先), rev 累计营业总收入, revY 同比, revQ 季度环比, ni 累计净利润, niY 同比, niQ 季度环比,
     bvps 每股净资产, roe 净资产收益率(年初至今净利润/期末净资产), ocf 每股经营现金流(年初至今),
@@ -72,16 +72,20 @@ def D(s):
 # ---------- 事实提取 ----------
 def durations(facts, concepts, unit="USD", ns="us-gaap"):
     """区间型事实 -> [(start, end, val, filed)]；概念按优先级，同一区间取最新申报。"""
-    best = {}
+    best, first = {}, {}
     for rank, c in enumerate(concepts):
         for e in facts.get(ns, {}).get(c, {}).get("units", {}).get(unit, []):
             if "start" not in e or not str(e.get("form", "")).startswith(("10-Q", "10-K")):
                 continue
             k = (e["start"], e["end"])
+            # 同一区间会在后续申报中作为对比期重复出现：数值取最新申报（含重述），
+            # 但公告日期和财年/财季标签必须取最早的那次申报（即该期间首次披露时）。
+            if k not in first or e["filed"] < first[k]["filed"]:
+                first[k] = e
             old = best.get(k)
             if old is None or rank < old[0] or (rank == old[0] and e["filed"] > old[1]["filed"]):
                 best[k] = (rank, e)
-    return [(D(k[0]), D(k[1]), v[1]["val"], v[1]["filed"], v[1].get("fy"), v[1].get("fp")) for k, v in best.items()]
+    return [(D(k[0]), D(k[1]), v[1]["val"], first[k]["filed"], first[k].get("fy"), first[k].get("fp")) for k, v in best.items()]
 
 
 def instants(facts, concepts, unit="USD", ns="us-gaap"):
@@ -101,7 +105,7 @@ def quarter(ds, end, tol=10):
     c = [x for x in ds if abs((x[1] - end).days) <= tol and 75 <= (x[1] - x[0]).days <= 105]
     if c:
         x = min(c, key=lambda x: abs((x[1] - end).days))
-        return x[2], x[1], x[3], x[4], x[5]
+        return x[2], x[1], x[3], x[4], ("Q4" if x[5] == "FY" else x[5])
     for a in (x for x in ds if abs((x[1] - end).days) <= tol and 340 <= (x[1] - x[0]).days <= 380):
         ytd = [y for y in ds if y[0] == a[0] and 255 <= (y[1] - y[0]).days <= 290 and 60 <= (a[1] - y[1]).days <= 105]
         if ytd:
@@ -252,14 +256,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--facts"), ap.add_argument("--subs"), ap.add_argument("--tickers")
     ap.add_argument("--out", default="data.json")
-    ap.add_argument("--no-industry", action="store_true", help="不下载 submissions.zip（行业列为空）")
+    ap.add_argument("--industry", action="store_true", help="额外下载 submissions.zip 并输出行业（SIC）字段；默认不需要")
     ap.add_argument("--include-otc", action="store_true", help="包含场外（OTC）股票")
     ap.add_argument("--max-age-days", type=int, default=400, help="忽略最新报告期早于此天数的公司")
     ap.add_argument("--periods", type=int, default=8, help="每家公司保留最近多少个报告期（默认 8 个季度）")
     a = ap.parse_args()
 
     ua = os.environ.get("SEC_USER_AGENT", "")
-    need_net = not (a.facts and (a.subs or a.no_industry) and a.tickers)
+    need_net = not (a.facts and a.tickers and (a.subs or not a.industry))
     if need_net and not re.search(r"\S+@\S+", ua):
         sys.exit('请先设置：export SEC_USER_AGENT="你的名字 your@email.com"（SEC 要求）')
 
@@ -280,7 +284,7 @@ def main():
 
     # 2) 行业
     industry = {}
-    if not a.no_industry:
+    if a.industry:
         subs = a.subs or "submissions.zip"
         if not a.subs:
             download(SUBS_URL, subs, ua)
@@ -311,7 +315,9 @@ def main():
                 continue
             t, n, ex = listed[cik]
             for row in recs:
-                row.update({"t": t, "n": n, "ex": ex, "ind": industry.get(cik, "")})
+                row.update({"t": t, "n": n, "ex": ex})
+                if a.industry:
+                    row["ind"] = industry.get(cik, "")
                 row.pop("cik")
                 rows.append(row)
 

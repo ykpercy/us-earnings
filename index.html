@@ -72,7 +72,7 @@ function cell(r,c,i){
  const v=r[key(c)];if(v==null||v==="")return `<td class="na">—</td>`;
  if(c.k==="t")return `<td class="tk">${v}</td>`;
  if(c.k==="n")return `<td class="nm" title="${v.replace(/"/g,"&quot;")}">${v}</td>`;
- if(c.k==="d")return `<td>${v.slice(5)}</td>`;
+ if(c.k==="d")return `<td>${v.slice(2)}</td>`;
  if(c.k==="rt")return `<td>${RT[v]||v}<div class="sub">${r.fq||""}</div></td>`;
  if(c.k==="end")return `<td>${v.slice(2)}</td>`;
  if(c.txt)return `<td>${v}</td>`;
