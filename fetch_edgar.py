@@ -13,7 +13,7 @@
     company_tickers_exchange.json   代码与交易所，用于只保留当前上市公司
 
 输出字段（金额单位：美元；增长率单位：%）：
-    （每家公司最多输出最近 8 个报告期（--periods 可调），且只保留 3 年内的（--years 可调）；rt 为报告类型：Q1 一季报 / H1 中报 / 9M 三季报 / FY 年报）
+    （每家公司输出最近 8 个报告期，每期一条记录；rt 为报告类型：Q1 一季报 / H1 中报 / 9M 三季报 / FY 年报）
     eps rev revY ni niY gm 均为年初至今累计值；revQ niQ 为最新单季相对上一季的环比
     t 代码, n 名称, ex 交易所, ind 行业(仅 --industry), cq 日历季度(如 2026Q3，按季末日期归类，便于跨公司比较),
     fq 公司财季(如 FY2026 Q4), end 报告期末, d 公告日期,
@@ -193,9 +193,8 @@ def shares_out(facts, ds_basic, end):
     return q[0] if q else None
 
 
-def build_rows(cik, doc, n_periods, years, as_of):
-    """返回该公司的报告期记录（新到旧）：最多 n_periods 个，且报告期末不早于 as_of 往前 years 年。"""
-    cutoff = as_of - timedelta(days=365 * years)
+def build_rows(cik, doc, n_periods):
+    """返回该公司最近 n_periods 个报告期的记录（新到旧）。每条同时含单季度值与年初至今累计值。"""
     facts = doc.get("facts", {})
     rev, ni = durations(facts, REV), durations(facts, NI)
     # 银行等金融公司常无 Revenues 标签：用 净利息收入 + 非利息收入 补足缺失的区间
@@ -209,8 +208,6 @@ def build_rows(cik, doc, n_periods, years, as_of):
 
     out = []
     for end in period_ends([rev, ni], n_periods):
-        if end < cutoff:
-            break  # period_ends 由新到旧，之后的更早
         # 单季值只用于计算季度环比、公告日期和财季标签，不作为数据输出
         r, n = quarter(rev, end, 3), quarter(ni, end, 3)
         if not (r or n):
@@ -255,40 +252,14 @@ def build_rows(cik, doc, n_periods, years, as_of):
     return out
 
 
-def manual_rows(path, by_ticker):
-    """读取 manual.json：10-Q 尚未进入 SEC 结构化数据时，用 8-K 新闻稿里的数字临时补录。
-    金额按 unit（million/thousand）换算成美元；同比、环比、毛利率由脚本计算。"""
-    out = []
-    for m in json.load(open(path, encoding="utf-8")):
-        mul = {"million": 1e6, "thousand": 1e3}.get(m.get("unit"), 1)
-        sc = lambda k: m[k] * mul if m.get(k) is not None else None
-        end = D(m["end"])
-        rev, ni, gp = sc("rev"), sc("ni"), sc("gp")
-        name, ex = by_ticker.get(m["t"], (m["t"], ""))
-        row = {
-            "t": m["t"], "n": m.get("n") or name, "ex": m.get("ex") or ex,
-            "cq": cal_quarter(end), "end": m["end"], "d": m["d"], "fq": m.get("fq"), "rt": m["rt"],
-            "eps": m.get("eps"),
-            "rev": rev, "revY": growth(rev, sc("rev_py")), "revQ": growth(sc("q_rev"), sc("q_rev_prev")),
-            "ni": ni, "niY": growth(ni, sc("ni_py")), "niQ": growth(sc("q_ni"), sc("q_ni_prev")),
-            "bvps": m.get("bvps"), "roe": m.get("roe"), "ocf": m.get("ocf"),
-            "gm": round(gp / rev * 100, 2) if gp is not None and rev else None,
-        }
-        out.append({k: v for k, v in row.items() if v is not None})
-    return out
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--facts"), ap.add_argument("--subs"), ap.add_argument("--tickers")
     ap.add_argument("--out", default="data.json")
-    ap.add_argument("--manual", default="manual.json", help="8-K 临时补录文件（存在时才读取）")
     ap.add_argument("--industry", action="store_true", help="额外下载 submissions.zip 并输出行业（SIC）字段；默认不需要")
     ap.add_argument("--include-otc", action="store_true", help="包含场外（OTC）股票")
     ap.add_argument("--max-age-days", type=int, default=400, help="忽略最新报告期早于此天数的公司")
-    ap.add_argument("--periods", type=int, default=8, help="每家公司最多保留最近多少个报告期（默认 8 个季度）")
-    ap.add_argument("--years", type=int, default=3, help="报告期末早于这么多年前的记录一律丢弃（默认 3 年）")
-    ap.add_argument("--as-of", help="按此日期（YYYY-MM-DD）计算最近几年，默认今天；用于测试")
+    ap.add_argument("--periods", type=int, default=8, help="每家公司保留最近多少个报告期（默认 8 个季度）")
     a = ap.parse_args()
 
     ua = os.environ.get("SEC_USER_AGENT", "")
@@ -328,7 +299,7 @@ def main():
     facts_zip = a.facts or "companyfacts.zip"
     if not a.facts:
         download(FACTS_URL, facts_zip, ua)
-    rows, today = [], (D(a.as_of) if a.as_of else date.today())
+    rows, today = [], date.today()
     with zipfile.ZipFile(facts_zip) as z:
         for name in z.namelist():
             m = re.fullmatch(r"CIK(\d{10})\.json", name)
@@ -336,7 +307,7 @@ def main():
                 continue
             cik = int(m.group(1))
             try:
-                recs = build_rows(cik, json.load(z.open(name)), a.periods, a.years, today)
+                recs = build_rows(cik, json.load(z.open(name)), a.periods)
             except Exception as ex:  # 单个公司数据异常不应中断全量
                 log(f"跳过 {name}: {ex}")
                 continue
@@ -350,20 +321,6 @@ def main():
                 row.pop("cik")
                 rows.append(row)
 
-    # 合并 manual.json：SEC 结构化数据里已有同一公司同一报告期时，以 SEC 官方数据为准，补录自动失效
-    if os.path.exists(a.manual):
-        have = {}
-        for r in rows:
-            have.setdefault(r["t"], []).append(D(r["end"]))
-        by_ticker = {v[0]: (v[1], v[2]) for v in listed.values()}
-        added = 0
-        for r in manual_rows(a.manual, by_ticker):
-            if any(abs((D(r["end"]) - e).days) <= 10 for e in have.get(r["t"], [])):
-                log(f"补录 {r['t']} {r['end']}：SEC 已有该期数据，使用官方数据")
-                continue
-            rows.append(r)
-            added += 1
-        log(f"补录记录：{added} 条")
     companies = len({r["t"] for r in rows})
     out = {"updated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"), "count": companies, "records": len(rows), "rows": rows}
     with open(a.out, "w", encoding="utf-8") as f:
